@@ -44,6 +44,7 @@
 #define CMD20 "DETSTATS"
 
 #define CMD21 "ALLMATCHSCAN"
+#define CMD22 "JSONSESSION"
 
 #include "libclamav/clamav.h"
 #include "shared/optparser.h"
@@ -70,6 +71,7 @@ enum commands {
     COMMAND_COMMANDS,
     COMMAND_DETSTATSCLEAR,
     COMMAND_DETSTATS,
+    COMMAND_JSONSESSION,
     /* internal commands */
     COMMAND_MULTISCANFILE,
     COMMAND_INSTREAMSCAN,
@@ -91,6 +93,7 @@ typedef struct client_conn_tag {
     long quota;
     jobgroup_t *group;
     enum mode mode;
+    int json;
 } client_conn_t;
 
 int command(client_conn_t *conn, int *virus);

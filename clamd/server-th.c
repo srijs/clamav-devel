@@ -579,6 +579,7 @@ static const char* parse_dispatch_cmd(client_conn_t *conn, struct fd_buf *buf, s
     buf->mode = conn->mode;
     buf->id = conn->id;
     buf->group = conn->group;
+    buf->json = conn->json;
     buf->quota = conn->quota;
     if (conn->scanfd != -1 && conn->scanfd != buf->dumpfd) {
 	logg("$Unclaimed file descriptor received, closing: %d\n", conn->scanfd);
@@ -1251,6 +1252,7 @@ int recvloop_th(int *socketds, unsigned nsockets, struct cl_engine *engine, unsi
 		conn.engine = engine;
 		conn.group = buf->group;
 		conn.id = buf->id;
+		conn.json = buf->json;
 		conn.quota = buf->quota;
 		conn.filename = buf->dumpname;
 		conn.mode = buf->mode;

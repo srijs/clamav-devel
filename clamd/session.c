@@ -1,5 +1,4 @@
-/*
- *  Copyright (C) 2007-2009 Sourcefire, Inc.
+/* *  Copyright (C) 2007-2009 Sourcefire, Inc.
  *
  *  Authors: Tomasz Kojm, Török Edvin
  *
@@ -95,7 +94,8 @@ static struct {
     {CMD17, sizeof(CMD17)-1,	COMMAND_INSTREAM,   0,	0, 1},
     {CMD19, sizeof(CMD19)-1,	COMMAND_DETSTATSCLEAR,	0, 1, 1},
     {CMD20, sizeof(CMD20)-1,	COMMAND_DETSTATS,   0, 1, 1},
-    {CMD21, sizeof(CMD21)-1,	COMMAND_ALLMATCHSCAN,  1, 0, 1}
+    {CMD21, sizeof(CMD21)-1,	COMMAND_ALLMATCHSCAN,  1, 0, 1},
+    {CMD22, sizeof(CMD22)-1,	COMMAND_JSONSESSION, 0, 0, 1}
 };
 
 enum commands parse_command(const char *cmd, const char **argument, int oldstyle)
@@ -131,39 +131,50 @@ enum commands parse_command(const char *cmd, const char **argument, int oldstyle
 
 int conn_reply_single(const client_conn_t *conn, const char *path, const char *status)
 {
-    if (conn->id) {
-	if (path)
-	    return mdprintf(conn->sd, "%u: %s: %s%c", conn->id, path, status, conn->term);
-	return mdprintf(conn->sd, "%u: %s%c", conn->id, status, conn->term);
-    }
+  if (conn->id && !conn->json) {
     if (path)
-	return mdprintf(conn->sd, "%s: %s%c", path, status, conn->term);
+      return mdprintf(conn->sd, "%u: %s: %s%c", conn->id, path, status, conn->term);
+    return mdprintf(conn->sd, "%u: %s%c", conn->id, status, conn->term);
+  } else if (conn->id && conn->json) {
+    if (path)
+      return mdprintf(conn->sd, "{\"id\": %u, \"path\": \"%s\", \"status\": \"%s\"}%c",
+                                conn->id, path, status, conn->term);
+    return mdprintf(conn->sd, "{\"id\": %u, \"status\": \"%s\"}%c",
+                              conn->id, status, conn->term);
+  } else {
+    if (path)
+      return mdprintf(conn->sd, "%s: %s%c", path, status, conn->term);
     return mdprintf(conn->sd, "%s%c", status, conn->term);
+  }
 }
 
 int conn_reply(const client_conn_t *conn, const char *path,
 	       const char *msg, const char *status)
 {
-    if (conn->id) {
-	if (path)
-	    return mdprintf(conn->sd, "%u: %s: %s %s%c", conn->id, path, msg,
-			    status, conn->term);
-	return mdprintf(conn->sd, "%u: %s %s%c", conn->id, msg, status,
-			conn->term);
-    }
+  if (conn->id && !conn->json) {
     if (path)
-	return mdprintf(conn->sd, "%s: %s %s%c", path, msg, status, conn->term);
+      return mdprintf(conn->sd, "%u: %s: %s %s%c", conn->id, path, msg,
+                      status, conn->term);
+    return mdprintf(conn->sd, "%u: %s %s%c", conn->id, msg, status,
+                    conn->term);
+  } else if (conn->id && conn->json) {
+    if (path)
+      return mdprintf(conn->sd, "{\"id\": %u, \"path\": \"%s\","
+                                " \"msg\": \"%s\", \"status\": \"%s\"}%c",
+                                conn->id, path, msg, status, conn->term);
+    return mdprintf(conn->sd, "{\"id\": %u, \"msg\": \"%s\", \"status\": \"%s\"}%c",
+                              conn->id, msg, status, conn->term);
+  } else {
+    if (path)
+      return mdprintf(conn->sd, "%s: %s %s%c", path, msg, status, conn->term);
     return mdprintf(conn->sd, "%s %s%c", msg, status, conn->term);
+  }
 }
 
 int conn_reply_virus(const client_conn_t *conn, const char *file,
 	       const char *virname)
 {
-    if (conn->id) {
-	return mdprintf(conn->sd, "%u: %s: %s FOUND%c", conn->id, file, virname,
-	    conn->term);
-    }
-    return mdprintf(conn->sd, "%s: %s FOUND%c", file, virname, conn->term);
+    return conn_reply(conn, file, virname, "FOUND");
 }
 
 int conn_reply_error(const client_conn_t *conn, const char *msg)
@@ -570,10 +581,7 @@ int execute_or_dispatch_command(client_conn_t *conn, enum commands cmd, const ch
 	     * connection */
 	    return 1;
 	case COMMAND_PING:
-	    if (conn->group)
-		mdprintf(desc, "%u: PONG%c", conn->id, term);
-	    else
-		mdprintf(desc, "PONG%c", term);
+		  conn_reply_single(conn, NULL, "PONG");
 	    return conn->group ? 0 : 1;
 	case COMMAND_VERSION:
 	    {
@@ -617,6 +625,8 @@ int execute_or_dispatch_command(client_conn_t *conn, enum commands cmd, const ch
 	case COMMAND_INSTREAMSCAN:
 	case COMMAND_ALLMATCHSCAN:
 	    return dispatch_command(conn, cmd, argument);
+	case COMMAND_JSONSESSION:
+			conn->json = 1;
 	case COMMAND_IDSESSION:
 	    conn->group = thrmgr_group_new();
 	    if (!conn->group)

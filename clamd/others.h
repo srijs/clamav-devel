@@ -49,6 +49,7 @@ struct fd_buf {
      * too that don't belong there either. */
     enum mode mode;
     int id;
+    int json;
     int dumpfd;
     uint32_t chunksize;
     long quota;
