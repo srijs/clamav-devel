@@ -489,7 +489,7 @@ int command(client_conn_t *conn, int *virus)
     return ret;
 }
 
-static int print_ver(int desc, char term, const struct cl_engine *engine)
+static int print_ver(client_conn_t *conn, char term, const struct cl_engine *engine)
 {
     uint32_t ver;
 
@@ -502,28 +502,28 @@ static int print_ver(int desc, char term, const struct cl_engine *engine)
 	tstr = cli_ctime(&t, timestr, sizeof(timestr));
 	/* cut trailing \n */
 	timestr[strlen(tstr)-1] = '\0';
-	return mdprintf(desc, "ClamAV %s/%u/%s%c", get_version(), (unsigned int) ver, tstr, term);
+	return mdprintf(conn->sd, "ClamAV %s/%u/%s%c", get_version(), (unsigned int) ver, tstr, term);
     }
-    return mdprintf(desc, "ClamAV %s%c", get_version(), term);
+    return mdprintf(conn->sd, "ClamAV %s%c", get_version(), term);
 }
 
-static void print_commands(int desc, char term, const struct cl_engine *engine)
+static void print_commands(client_conn_t *conn, char term, const struct cl_engine *engine)
 {
     unsigned i, n;
     const char *engine_ver = cl_retver();
     const char *clamd_ver = get_version();
     if (strcmp(engine_ver, clamd_ver)) {
-	mdprintf(desc, "ENGINE VERSION MISMATCH: %s != %s. ERROR%c",
+	mdprintf(conn->sd, "ENGINE VERSION MISMATCH: %s != %s. ERROR%c",
 		 engine_ver, clamd_ver, term);
 	return;
     }
-    print_ver(desc, '|', engine);
-    mdprintf(desc, " COMMANDS:");
+    print_ver(conn, '|', engine);
+    mdprintf(conn->sd, " COMMANDS:");
     n = sizeof(commands)/sizeof(commands[0]);
     for (i=0;i<n;i++) {
-	mdprintf(desc, " %s", commands[i].cmd);
+	mdprintf(conn->sd, " %s", commands[i].cmd);
     }
-    mdprintf(desc, "%c", term);
+    mdprintf(conn->sd, "%c", term);
 }
 
 /* returns:
@@ -587,14 +587,14 @@ int execute_or_dispatch_command(client_conn_t *conn, enum commands cmd, const ch
 	    {
 		if (conn->group)
 		    mdprintf(desc, "%u: ", conn->id);
-		print_ver(desc, conn->term, engine);
+		print_ver(conn, conn->term, engine);
 		return conn->group ? 0 : 1;
 	    }
 	case COMMAND_COMMANDS:
 	    {
 		if (conn->group)
 		    mdprintf(desc, "%u: ", conn->id);
-		print_commands(desc, conn->term, engine);
+		print_commands(conn, conn->term, engine);
 		return conn->group ? 0 : 1;
 	    }
 	case COMMAND_DETSTATSCLEAR:
